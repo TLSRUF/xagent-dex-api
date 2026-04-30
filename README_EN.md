@@ -212,7 +212,7 @@ X-API-Key: your-api-key
 ```json
 {
   "success": true,
-  "tx_hash": "demo_tx_1234567890",  # Demo transaction hash
+  "tx_hash": "7CD187CA91D394B4A42EC14FB5B0BC7FA3D0AD21BF8B3A316ABCE8050799A5EA",
   "from_currency": "XRP",
   "to_currency": "USD",
   "from_amount": "100",
@@ -365,7 +365,7 @@ After server starts, API documentation available at:
 ## Current Limitations
 
 - **Testnet Only**: Currently running on XRPL testnet
-- **Demo Mode**: Swap function returns demo transaction hash
+- **Testnet Liquidity Issues**: Swaps may not fill due to insufficient order book liquidity
 - **Fee Processing**: Currently fee deduction only, actual transfer pending
 - **Order Book**: May be empty due to testnet characteristics
 
