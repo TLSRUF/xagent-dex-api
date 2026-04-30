@@ -49,7 +49,8 @@ def swap_tokens(from_currency: str, to_currency: str, amount: float) -> str:
     response = httpx.post(
         f"{API_BASE}/dex/swap",
         headers={"X-API-Key": API_KEY},
-        json={"from_currency": from_currency, "to_currency": to_currency, "amount": amount}
+        json={"from_currency": from_currency, "to_currency": to_currency, "amount": amount},
+        timeout=60.0
     )
     return str(response.json())
 
