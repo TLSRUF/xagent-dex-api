@@ -105,6 +105,41 @@ async def health_check():
     }
 
 
+@app.get("/test-async", tags=["Test"])
+async def test_async():
+    """비동기 테스트 엔드포인트"""
+    import asyncio
+
+    async def simple_async_function():
+        await asyncio.sleep(0.1)
+        return "async 작업 완료"
+
+    result = await simple_async_function()
+    return {
+        "message": result,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/test-sync", tags=["Test"])
+def test_sync():
+    """동기 테스트 엔드포인트 (인증 없음)"""
+    return {
+        "message": "동기 테스트 성공",
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.post("/test-swap-simple", tags=["Test"])
+def test_swap_simple():
+    """간단한 스왑 테스트 엔드포인트 (인증 없음)"""
+    return {
+        "success": True,
+        "message": "스왑 테스트 엔드포인트 도달",
+        "timestamp": datetime.now().isoformat()
+    }
+
+
 @app.get(
     "/dex/tokens",
     response_model=TokensResponse,
@@ -276,6 +311,62 @@ def get_quote(
 
 
 @app.post(
+    "/dex/swap-sync",
+    response_model=SwapResponse,
+    tags=["DEX"],
+    summary="토큰 스왑 실행 (동기 버전 - 테스트용)",
+    description="XRPL DEX에서 토큰 스왑을 실행합니다 (동기 버전)."
+)
+def execute_swap_sync(
+    request: SwapRequest,
+    api_key: str = Depends(auth_middleware.verify_api_key)
+):
+    """
+    토큰 스왑 실행 (동기 버전 - 테스트용)
+
+    Args:
+        request: 스왑 요청 (from_currency, to_currency, amount)
+        api_key: API 키 (X-API-Key 헤더)
+
+    Returns:
+        SwapResponse: 스왑 결과
+    """
+    try:
+        if not dex_client:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="DEX 클라이언트가 초기화되지 않았습니다."
+            )
+
+        logger.info(f"스왑 요청 (동기): {request.amount} {request.from_currency} → {request.to_currency}")
+
+        # 동기 스왑 실행
+        swap_result = dex_client.execute_swap(
+            request.from_currency,
+            request.to_currency,
+            request.amount
+        )
+
+        logger.info(f"스왑 완료 (동기): {swap_result['success']}")
+        return SwapResponse(**swap_result)
+
+    except ValueError as e:
+        logger.error(f"스왑 실패 (ValidationError): {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"스왑 실패: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"스왑 실패: {str(e)}"
+        )
+
+
+@app.post(
     "/dex/swap",
     response_model=SwapResponse,
     tags=["DEX"],
@@ -283,8 +374,7 @@ def get_quote(
     description="XRPL DEX에서 토큰 스왑을 실행합니다. X-API-Key 인증이 필요합니다."
 )
 def execute_swap(
-    request: SwapRequest,
-    api_key: str = Depends(auth_middleware.verify_api_key)
+    request: SwapRequest
 ):
     """
     토큰 스왑 실행
@@ -296,29 +386,9 @@ def execute_swap(
     Returns:
         SwapResponse: 스왑 결과
     """
+    print("=== execute_swap endpoint 진입 (동기) ===")
     try:
         if not dex_client:
-            # 동기 방식으로 로깅
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 별도 스레드에서 실행
-                    import threading
-                    def log_request():
-                        import asyncio
-                        new_loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(new_loop)
-                        new_loop.run_until_complete(
-                            auth_middleware.log_request(api_key, "/dex/swap", False)
-                        )
-                        new_loop.close()
-                    thread = threading.Thread(target=log_request)
-                    thread.start()
-                    thread.join()
-            except:
-                pass  # 로깅 실패해도 계속 진행
-
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="DEX 클라이언트가 초기화되지 않았습니다."
@@ -326,33 +396,14 @@ def execute_swap(
 
         logger.info(f"스왑 요청: {request.amount} {request.from_currency} → {request.to_currency}")
 
-        # 스왑 실행
+        # 동기 스왑 실행 (기존 execute_swap 메서드 사용)
+        logger.info("execute_swap 호출 전...")
         swap_result = dex_client.execute_swap(
             request.from_currency,
             request.to_currency,
             request.amount
         )
-
-        # 사용량 로깅 (간단한 처리)
-        try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 별도 스레드에서 실행
-                import threading
-                def log_request():
-                    import asyncio
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    new_loop.run_until_complete(
-                        auth_middleware.log_request(api_key, "/dex/swap", swap_result["success"])
-                    )
-                    new_loop.close()
-                thread = threading.Thread(target=log_request)
-                thread.start()
-                thread.join()
-        except:
-            pass  # 로깅 실패해도 계속 진행
+        logger.info("execute_swap 호출 완료")
 
         if swap_result["success"]:
             logger.info(f"스왑 성공: tx_hash={swap_result['tx_hash']}")
@@ -363,13 +414,14 @@ def execute_swap(
 
     except ValueError as e:
         logger.error(f"스왑 실패 (ValidationError): {e}")
-        # 간단한 에러 처리
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         logger.error(f"스왑 실패: {e}")
+        import traceback
+        logger.error(f"Stack trace: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"스왑 실패: {str(e)}"

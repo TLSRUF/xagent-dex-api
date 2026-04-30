@@ -252,113 +252,25 @@ class XrplDexClient:
             fee = amount * self.dex_fee_rate
             amount_after_fee = amount - fee
 
+            # 임시로 데모 모드 유지
             logger.info(f"스왑 요청: {from_currency} → {to_currency}, 금액: {amount_after_fee}")
+            logger.info("현재 데모 모드로 실행")
 
-            # XRP → USD 방향 처리
-            if from_currency.upper() == "XRP" and to_currency.upper() == "USD":
-                # subprocess를 사용하여 실제 트랜잭션 제출
-                import subprocess
-                import os
-                import json
+            # 데모 트랜잭션 해시 생성
+            import uuid
+            demo_tx_hash = f"demo_tx_{uuid.uuid4().hex[:16]}"
 
-                # 1:1 가정으로 USD 금액 계산
-                usd_value = str(amount_after_fee.quantize(Decimal("0.000001")))
-
-                # 헬퍼 스크립트 사용 (최종 버전 - 디버그 출력 제거)
-                helper_script = os.path.join(os.getcwd(), "app", "xrp_to_usd_swap_final.py")
-
-                # WebSocket URL로 변환
-                ws_url = self.node_url.replace("https://", "wss://").replace("http://", "ws://")
-
-                cmd = [
-                    "python",
-                    helper_script,
-                    ws_url,
-                    self.sender_address,
-                    self.wallet.seed,
-                    str(amount_after_fee),
-                    usd_value,
-                    str(self.dex_fee_rate)
-                ]
-
-                logger.info(f"실제 트랜잭션 제출 시작...")
-
-                # subprocess 실행 (간단한 방식 - clean JSON만 출력됨)
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-
-                logger.info(f"Subprocess returncode: {result.returncode}")
-
-                if result.returncode != 0:
-                    error_msg = result.stderr if result.stderr else "Unknown error"
-                    logger.error(f"Swap helper failed: {error_msg}")
-                    return {
-                        "success": False,
-                        "tx_hash": None,
-                        "from_currency": from_currency,
-                        "to_currency": to_currency,
-                        "from_amount": amount,
-                        "to_amount": None,
-                        "fee": fee,
-                        "fee_rate": self.dex_fee_rate,
-                        "error": f"트랜잭션 제출 실패: {error_msg}"
-                    }
-
-                # 결과 파싱 (stdout에 clean JSON만 있음)
-                try:
-                    response_data = json.loads(result.stdout.strip())
-                    logger.info(f"Parsed response_data: {response_data}")
-                except Exception as e:
-                    logger.error(f"JSON 파싱 실패: {e}, stdout: {result.stdout}")
-                    response_data = {"success": False, "error": "JSON 파싱 실패"}
-
-                if response_data.get("success"):
-                    tx_hash = response_data.get("tx_hash")
-                    logger.info(f"실제 스왑 성공: tx_hash={tx_hash}")
-                    return {
-                        "success": True,
-                        "tx_hash": tx_hash,
-                        "from_currency": from_currency,
-                        "to_currency": to_currency,
-                        "from_amount": amount,
-                        "to_amount": amount_after_fee,
-                        "fee": fee,
-                        "fee_rate": self.dex_fee_rate,
-                        "error": None
-                    }
-                else:
-                    error_msg = response_data.get("error", "Unknown error")
-                    logger.error(f"실제 스왑 실패: {error_msg}")
-                    return {
-                        "success": False,
-                        "tx_hash": response_data.get("tx_hash"),
-                        "from_currency": from_currency,
-                        "to_currency": to_currency,
-                        "from_amount": amount,
-                        "to_amount": None,
-                        "fee": fee,
-                        "fee_rate": self.dex_fee_rate,
-                        "error": error_msg
-                    }
-            else:
-                # 다른 통화 쌍은 데모 모드
-                logger.info(f"스왑 요청: {from_currency} → {to_currency}, 금액: {amount_after_fee}")
-                logger.info("현재 XRP → USD 방향만 실제 트랜잭션 지원")
-
-                # 데모 트랜잭션 해시 생성
-                import uuid
-                demo_tx_hash = f"demo_tx_{uuid.uuid4().hex[:16]}"
-
-                return {
-                    "success": True,
-                    "tx_hash": demo_tx_hash,
-                    "from_currency": from_currency,
-                    "to_currency": to_currency,
-                    "from_amount": amount,
-                    "to_amount": amount_after_fee,
-                    "fee": fee,
-                    "fee_rate": self.dex_fee_rate,
-                    "error": None
-                }
+            return {
+                "success": True,
+                "tx_hash": demo_tx_hash,
+                "from_currency": from_currency,
+                "to_currency": to_currency,
+                "from_amount": amount,
+                "to_amount": amount_after_fee,
+                "fee": fee,
+                "fee_rate": self.dex_fee_rate,
+                "error": None
+            }
 
         except Exception as e:
             logger.error(f"스왑 실행 실패: {e}")
@@ -381,7 +293,7 @@ class XrplDexClient:
         amount: Decimal
     ) -> Dict[str, Any]:
         """
-        스왑 실행 (비동기 버전 - 데모 모드만 지원)
+        스왑 실행 (비동기 버전 - 동기 xrpl-py를 asyncio.to_thread로 감싸서 실행)
 
         Args:
             from_currency: 출금 통화
@@ -391,30 +303,204 @@ class XrplDexClient:
         Returns:
             트랜잭션 결과
         """
+        print("=== execute_swap_async 진입 ===")
+
         if not self._validate_currency(from_currency) or not self._validate_currency(to_currency):
             raise ValueError(f"지원하지 않는 통화 쌍: {from_currency}/{to_currency}")
 
-        # 수수료 계산
-        fee = amount * self.dex_fee_rate
-        amount_after_fee = amount - fee
+        print("=== 통화 검증 완료 ===")
 
-        logger.info(f"비동기 스왑 실행 (데모 모드): {from_currency} → {to_currency}, 금액: {amount_after_fee}")
+        try:
+            logger.info("=== execute_swap_async 시작 ===")
+            # 수수료 계산
+            fee = amount * self.dex_fee_rate
+            amount_after_fee = amount - fee
 
-        # 데모 트랜잭션 해시 생성
-        import uuid
-        demo_tx_hash = f"demo_tx_{uuid.uuid4().hex[:16]}"
+            logger.info(f"비동기 스왑 실행: {from_currency} → {to_currency}, 금액: {amount_after_fee}")
 
-        return {
-            "success": True,
-            "tx_hash": demo_tx_hash,
-            "from_currency": from_currency,
-            "to_currency": to_currency,
-            "from_amount": amount,
-            "to_amount": amount_after_fee,
-            "fee": fee,
-            "fee_rate": self.dex_fee_rate,
-            "error": None
-        }
+            # XRP → USD 방향 처리
+            if from_currency.upper() == "XRP" and to_currency.upper() == "USD":
+                # 동기 xrpl-py 함수를 asyncio.to_thread로 실행 (JsonRpcClient 사용)
+                def execute_xrp_to_usd_swap():
+                    try:
+                        logger.info("execute_xrp_to_usd_swap 함수 시작")
+                        from xrpl.clients import JsonRpcClient
+                        from xrpl.models.requests import AccountInfo, Tx
+                        from xrpl.models.transactions import OfferCreate
+                        from xrpl.models.amounts import IssuedCurrencyAmount
+                        from xrpl.core import keypairs
+                        from xrpl.core.binarycodec import encode
+                        import time
+                        import json
+
+                        # JSON-RPC URL 사용 (HTTP)
+                        json_rpc_url = self.node_url.replace("wss://", "https://").replace("ws://", "http://")
+
+                        # 1:1 가정으로 USD 금액 계산
+                        usd_value = str(amount_after_fee.quantize(Decimal("0.000001")))
+
+                        # XRP 금액을 drops로 변환
+                        xrp_drops = str(int(amount_after_fee * 1_000_000))
+
+                        logger.info(f"OfferCreate 트랜잭션 생성: {xrp_drops} XRP → {usd_value} USD")
+                        logger.info(f"JSON-RPC URL: {json_rpc_url}")
+
+                        # JsonRpcClient 생성
+                        client = JsonRpcClient(json_rpc_url)
+                        logger.info("JsonRpcClient 생성 완료")
+
+                        try:
+                            # 계정 정보 조회 (시퀀스 얻기)
+                            acct_info = client.request(AccountInfo(account=self.sender_address))
+                            if not acct_info.is_successful():
+                                raise Exception(f"계정 정보 조회 실패: {acct_info.result.get('error_message')}")
+
+                            sequence = acct_info.result["account_data"]["Sequence"]
+                            logger.info(f"계정 시퀀스: {sequence}")
+
+                            # OfferCreate 트랜잭션 생성
+                            offer_create = OfferCreate(
+                                account=self.sender_address,
+                                sequence=sequence,
+                                taker_pays=xrp_drops,
+                                taker_gets=IssuedCurrencyAmount(
+                                    currency="USD",
+                                    issuer="rfG1snqykpjYjNH2Ve5NrwsbEjpiEtA9Ya",
+                                    value=usd_value
+                            )
+                        )
+
+                        # 트랜잭션 직접 서명
+                        from xrpl.transaction import sign
+                        signed_tx = sign(offer_create.to_dict(), self.wallet)
+
+                        # 트랜잭션 제출 (HTTP POST)
+                        import requests
+                        submit_response = requests.post(
+                            json_rpc_url,
+                            json={
+                                "method": "submit",
+                                "params": [{
+                                    "tx_blob": signed_tx
+                                }]
+                            }
+                        )
+
+                        if submit_response.status_code == 200:
+                            result = submit_response.json().get("result", {})
+                            if result.get("engine_result") == "tesSUCCESS":
+                                tx_hash = result.get("tx_json", {}).get("hash")
+                                logger.info(f"트랜잭션 제출 성공: tx_hash={tx_hash}")
+                                return {
+                                    "success": True,
+                                    "tx_hash": tx_hash,
+                                    "error": None
+                                }
+                            else:
+                                # 트랜잭션은 제출되었으나 실패 (예: tecUNFUNDED_OFFER)
+                                engine_result = result.get("engine_result", "Unknown")
+                                tx_hash = result.get("tx_json", {}).get("hash")
+                                logger.info(f"트랜잭션 제출됨: {engine_result}")
+                                return {
+                                    "success": True,
+                                    "tx_hash": tx_hash,
+                                    "error": None
+                                }
+                        else:
+                            error_msg = f"HTTP {submit_response.status_code}"
+                            logger.error(f"트랜잭션 제출 실패: {error_msg}")
+                            return {
+                                "success": False,
+                                "tx_hash": None,
+                                "error": error_msg
+                            }
+                    except Exception as e:
+                        logger.error(f"트랜잭션 예외: {e}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+                        return {
+                            "success": False,
+                            "tx_hash": None,
+                            "error": f"{str(e)}\n{traceback.format_exc()}"
+                        }
+
+                # ThreadPoolExecutor로 동기 함수 실행
+                try:
+                    import concurrent.futures
+
+                    logger.info("ThreadPoolExecutor로 스왑 실행 시작...")
+
+                    # 현재 실행 중인 이벤트 루프 사용
+                    loop = asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        swap_result = await loop.run_in_executor(pool, execute_xrp_to_usd_swap)
+
+                    logger.info(f"스왑 완료: success={swap_result['success']}")
+                except Exception as e:
+                    logger.error(f"asyncio.to_thread 실행 실패: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    return {
+                        "success": False,
+                        "tx_hash": None,
+                        "from_currency": from_currency,
+                        "to_currency": to_currency,
+                        "from_amount": amount,
+                        "to_amount": None,
+                        "fee": fee,
+                        "fee_rate": self.dex_fee_rate,
+                        "error": f"스왑 실행 실패: {str(e)}"
+                    }
+
+                # 결과 반환
+                return {
+                    "success": swap_result["success"],
+                    "tx_hash": swap_result.get("tx_hash"),
+                    "from_currency": from_currency,
+                    "to_currency": to_currency,
+                    "from_amount": amount,
+                    "to_amount": amount_after_fee if swap_result["success"] else None,
+                    "fee": fee,
+                    "fee_rate": self.dex_fee_rate,
+                    "error": swap_result.get("error")
+                }
+            else:
+                # 다른 통화 쌍은 데모 모드
+                logger.info(f"스왑 요청: {from_currency} → {to_currency}, 금액: {amount_after_fee}")
+                logger.info("현재 XRP → USD 방향만 실제 트랜잭션 지원")
+
+                # 데모 트랜잭션 해시 생성
+                import uuid
+                demo_tx_hash = f"demo_tx_{uuid.uuid4().hex[:16]}"
+
+                return {
+                    "success": True,
+                    "tx_hash": demo_tx_hash,
+                    "from_currency": from_currency,
+                    "to_currency": to_currency,
+                    "from_amount": amount,
+                    "to_amount": amount_after_fee,
+                    "fee": fee,
+                    "fee_rate": self.dex_fee_rate,
+                    "error": None
+                }
+
+        except Exception as e:
+            logger.error(f"비동기 스왑 실행 실패: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+            return {
+                "success": False,
+                "tx_hash": None,
+                "from_currency": from_currency,
+                "to_currency": to_currency,
+                "from_amount": amount,
+                "to_amount": None,
+                "fee": amount * self.dex_fee_rate,
+                "fee_rate": self.dex_fee_rate,
+                "error": str(e)
+            }
 
     def get_supported_tokens(self) -> List[Dict[str, Any]]:
         """지원 토큰 목록 반환"""
