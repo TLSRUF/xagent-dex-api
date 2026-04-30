@@ -1,99 +1,65 @@
-"""MCP 서버 테스트 스크립트"""
+"""MCP 서버 테스트 스크립트 (FastMCP)"""
 
-import asyncio
-import subprocess
+# MCP 서버의 함수를 직접 import하여 테스트
+from mcp_server import get_tokens, get_orderbook, get_quote, swap_tokens
 import json
-import sys
 
 
-async def test_mcp_server():
-    """MCP 서버 테스트"""
+def test_mcp_tools():
+    """MCP 툴 테스트"""
 
-    # MCP 서버 프로세스 시작
-    process = subprocess.Popen(
-        [sys.executable, "mcp_server.py"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1  # 라인 버퍼링
-    )
+    print("🚀 MCP 서버 툴 테스트 시작...")
 
+    # 1. get_tokens 테스트
+    print("\n1. get_tokens 테스트...")
     try:
-        # 초기화 요청 전송
-        init_request = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "test-client",
-                    "version": "1.0.0"
-                }
-            }
-        }
-
-        process.stdin.write(json.dumps(init_request) + "\n")
-        process.stdin.flush()
-
-        # 응답 수신
-        response_line = process.stdout.readline()
-        if response_line:
-            response = json.loads(response_line.strip())
-            print("✅ 초기화 응답:")
-            print(json.dumps(response, indent=2, ensure_ascii=False))
-
-        # 툴 목록 요청
-        tools_request = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {}
-        }
-
-        process.stdin.write(json.dumps(tools_request) + "\n")
-        process.stdin.flush()
-
-        response_line = process.stdout.readline()
-        if response_line:
-            response = json.loads(response_line.strip())
-            print("\n✅ 사용 가능한 툴:")
-            for tool in response.get("result", {}).get("tools", []):
-                print(f"  - {tool['name']}: {tool['description']}")
-
-        # get_tokens 툴 호출 테스트
-        call_request = {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {
-                "name": "get_tokens",
-                "arguments": {}
-            }
-        }
-
-        process.stdin.write(json.dumps(call_request) + "\n")
-        process.stdin.flush()
-
-        response_line = process.stdout.readline()
-        if response_line:
-            response = json.loads(response_line.strip())
-            print("\n✅ get_tokens 호출 결과:")
-            result = json.loads(response["result"]["content"][0]["text"])
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-
-        print("\n✅ MCP 서버 테스트 완료!")
-
+        tokens_result = get_tokens()
+        tokens = json.loads(tokens_result)
+        print("✅ get_tokens 성공:")
+        print(f"   - 지원 토큰 수: {tokens.get('count', 0)}")
+        for token in tokens.get('tokens', []):
+            print(f"   - {token['name']} ({token['currency']})")
     except Exception as e:
-        print(f"❌ 테스트 실패: {e}")
-    finally:
-        # 프로세스 종료
-        process.stdin.close()
-        process.terminate()
-        process.wait()
+        print(f"❌ get_tokens 실패: {e}")
+
+    # 2. get_orderbook 테스트
+    print("\n2. get_orderbook 테스트...")
+    try:
+        orderbook_result = get_orderbook("XRP", "USD", 5)
+        orderbook = json.loads(orderbook_result)
+        print("✅ get_orderbook 성공:")
+        print(f"   - 매도 호가 수: {len(orderbook.get('asks', []))}")
+        print(f"   - 매수 호가 수: {len(orderbook.get('bids', []))}")
+    except Exception as e:
+        print(f"❌ get_orderbook 실패: {e}")
+
+    # 3. get_quote 테스트
+    print("\n3. get_quote 테스트...")
+    try:
+        quote_result = get_quote("XRP", "USD", "100")
+        quote = json.loads(quote_result)
+        print("✅ get_quote 성공:")
+        print(f"   - 출금: {quote.get('from_amount')} {quote.get('from_currency')}")
+        print(f"   - 입금: {quote.get('to_amount')} {quote.get('to_currency')}")
+        print(f"   - 수수료: {quote.get('fee')} ({quote.get('fee_rate')})")
+    except Exception as e:
+        print(f"❌ get_quote 실패: {e}")
+
+    # 4. swap_tokens 테스트 (소액)
+    print("\n4. swap_tokens 테스트...")
+    try:
+        swap_result = swap_tokens("XRP", "USD", "1")
+        swap = json.loads(swap_result)
+        print("✅ swap_tokens 성공:")
+        print(f"   - 성공 여부: {swap.get('success')}")
+        print(f"   - 트랜잭션 해시: {swap.get('tx_hash')}")
+        if swap.get('error'):
+            print(f"   - 에러: {swap['error']}")
+    except Exception as e:
+        print(f"❌ swap_tokens 실패: {e}")
+
+    print("\n✅ MCP 서버 툴 테스트 완료!")
 
 
 if __name__ == "__main__":
-    asyncio.run(test_mcp_server())
+    test_mcp_tools()
