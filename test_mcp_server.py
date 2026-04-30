@@ -25,7 +25,7 @@ def test_mcp_tools():
     # 2. get_orderbook 테스트
     print("\n2. get_orderbook 테스트...")
     try:
-        orderbook_result = get_orderbook("XRP", "USD", 5)
+        orderbook_result = get_orderbook("XRP", "USD")
         orderbook = json.loads(orderbook_result)
         print("✅ get_orderbook 성공:")
         print(f"   - 매도 호가 수: {len(orderbook.get('asks', []))}")
@@ -36,7 +36,7 @@ def test_mcp_tools():
     # 3. get_quote 테스트
     print("\n3. get_quote 테스트...")
     try:
-        quote_result = get_quote("XRP", "USD", "100")
+        quote_result = get_quote("XRP", "USD", 100.0)
         quote = json.loads(quote_result)
         print("✅ get_quote 성공:")
         print(f"   - 출금: {quote.get('from_amount')} {quote.get('from_currency')}")
@@ -48,7 +48,7 @@ def test_mcp_tools():
     # 4. swap_tokens 테스트 (소액)
     print("\n4. swap_tokens 테스트...")
     try:
-        swap_result = swap_tokens("XRP", "USD", "1")
+        swap_result = swap_tokens("XRP", "USD", 1.0)
         swap = json.loads(swap_result)
         print("✅ swap_tokens 성공:")
         print(f"   - 성공 여부: {swap.get('success')}")
