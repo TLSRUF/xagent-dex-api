@@ -369,6 +369,49 @@ After server starts, API documentation available at:
 - **Fee Processing**: Currently fee deduction only, actual transfer pending
 - **Order Book**: May be empty due to testnet characteristics
 
+## MCP Server Usage
+
+Run the XRPL DEX API as an MCP (Model Context Protocol) server to integrate with other applications.
+
+### Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run MCP Server
+
+```bash
+python mcp_server.py
+```
+
+### Available MCP Tools
+
+1. **get_orderbook**: Get order book
+   - Parameters: base, quote, limit
+   - Calls DEX API `/dex/orderbook`
+
+2. **get_quote**: Get swap quote
+   - Parameters: from_currency, to_currency, amount
+   - Calls DEX API `/dex/quote`
+
+3. **swap_tokens**: Execute token swap
+   - Parameters: from_currency, to_currency, amount
+   - Calls DEX API `/dex/swap`
+
+4. **get_tokens**: Get supported tokens list
+   - Parameters: none
+   - Calls DEX API `/dex/tokens`
+
+### Environment Variables
+
+Add MCP settings to your `.env` file:
+
+```env
+MCP_API_KEY=your-mcp-api-key
+MCP_API_BASE_URL=http://localhost:8000
+```
+
 ## License
 
 MIT License

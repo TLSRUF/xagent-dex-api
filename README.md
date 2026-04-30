@@ -379,6 +379,49 @@ XRPL_DEX/
 - XRP/USD 페어 지원 (Bitstamp)
 - 한국어 문서화
 
+## MCP 서버 사용
+
+XRPL DEX API를 MCP(Model Context Protocol) 서버로 실행하여 다른 애플리케이션과 통합할 수 있습니다.
+
+### 설치
+
+```bash
+pip install -r requirements.txt
+```
+
+### 실행
+
+```bash
+python mcp_server.py
+```
+
+### 사용 가능한 MCP 툴
+
+1. **get_orderbook**: 오더북 조회
+   - 파라미터: base, quote, limit
+   - DEX API `/dex/orderbook` 호출
+
+2. **get_quote**: 스왑 견적 조회
+   - 파라미터: from_currency, to_currency, amount
+   - DEX API `/dex/quote` 호출
+
+3. **swap_tokens**: 토큰 스왑 실행
+   - 파라미터: from_currency, to_currency, amount
+   - DEX API `/dex/swap` 호출
+
+4. **get_tokens**: 지원 토큰 목록 조회
+   - 파라미터: 없음
+   - DEX API `/dex/tokens` 호출
+
+### 환경변수 설정
+
+`.env` 파일에 MCP 관련 설정을 추가합니다:
+
+```env
+MCP_API_KEY=your-mcp-api-key
+MCP_API_BASE_URL=http://localhost:8000
+```
+
 ## 라이선스
 
 MIT License
