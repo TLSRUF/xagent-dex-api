@@ -392,7 +392,18 @@ pip install -r requirements.txt
 ### 실행
 
 ```bash
+# DEX API 서버 실행 (필수)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# MCP 서버 실행 (다른 터미널)
 python mcp_server.py
+```
+
+### 테스트
+
+```bash
+# MCP 서버 테스트
+python test_mcp_server.py
 ```
 
 ### 사용 가능한 MCP 툴
@@ -421,6 +432,12 @@ python mcp_server.py
 MCP_API_KEY=your-mcp-api-key
 MCP_API_BASE_URL=http://localhost:8000
 ```
+
+### 통신 방식
+
+- JSON-RPC 2.0 프로토콜 사용
+- stdio(표준 입출력) 기반 통신
+- 다른 MCP 클라이언트와 통합 가능
 
 ## 라이선스
 

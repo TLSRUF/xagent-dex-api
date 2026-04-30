@@ -382,7 +382,18 @@ pip install -r requirements.txt
 ### Run MCP Server
 
 ```bash
+# DEX API server (required)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# MCP server (another terminal)
 python mcp_server.py
+```
+
+### Testing
+
+```bash
+# Test MCP server
+python test_mcp_server.py
 ```
 
 ### Available MCP Tools
@@ -411,6 +422,12 @@ Add MCP settings to your `.env` file:
 MCP_API_KEY=your-mcp-api-key
 MCP_API_BASE_URL=http://localhost:8000
 ```
+
+### Communication Method
+
+- JSON-RPC 2.0 protocol
+- stdio (standard input/output) based communication
+- Compatible with other MCP clients
 
 ## License
 
