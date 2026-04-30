@@ -4,11 +4,11 @@ Token swap API server powered by the XRPL built-in DEX. Built with FastAPI and x
 
 ## Features
 
-- **📖 Order Book**: Check bid/ask prices on XRPL DEX
-- **💱 Token Swap**: Exchange tokens like XRP, USD
-- **💰 Swap Quotes**: Get estimated amounts before swapping (fee included)
-- **🔐 API Authentication**: X-API-Key based authentication
-- **📊 Usage Limits**: Monthly 100 requests per API key
+- **Order Book**: Check bid/ask prices on XRPL DEX
+- **Token Swap**: Exchange tokens like XRP, USD
+- **Swap Quotes**: Get estimated amounts before swapping (fee included)
+- **API Authentication**: X-API-Key based authentication
+- **Usage Limits**: Monthly 100 requests per API key
 
 ## Tech Stack
 
@@ -379,4 +379,4 @@ For issues, create an Issue or contact repository maintainers.
 
 ---
 
-**⚡ Practice safe trading in the slippage & swap at your own risk!**
+**Practice safe trading in the slippage & swap at your own risk!**
